@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemBreakEvent;
 import org.bukkit.event.entity.PlayerDeathEvent; // 修正此行
 import org.bukkit.event.block.BlockDispenseArmorEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
@@ -80,8 +81,33 @@ public class ArmorChangeListener implements Listener {
     // 4. 右键装备
     @EventHandler
     public void onRightClick(PlayerInteractEvent event) {
+        // 只处理主手，避免副手重复触发
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        // 只处理右键
+        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR &&
+            event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+
         if (event.getItem() != null && isArmor(event.getItem())) {
-            event.getPlayer().getServer().getPluginManager().callEvent(new ArmorEquipEvent(event.getPlayer(), event.getItem()));
+            Player player = event.getPlayer();
+            // 只在玩家未打开界面且盔甲槽为空或不同装备时触发
+            if (player.getOpenInventory().getType() == InventoryType.CRAFTING) {
+                Material type = event.getItem().getType();
+                ItemStack currentArmor = switch (type) {
+                    case LEATHER_HELMET, CHAINMAIL_HELMET, IRON_HELMET, GOLDEN_HELMET, DIAMOND_HELMET, NETHERITE_HELMET ->
+                        player.getInventory().getHelmet();
+                    case LEATHER_CHESTPLATE, CHAINMAIL_CHESTPLATE, IRON_CHESTPLATE, GOLDEN_CHESTPLATE, DIAMOND_CHESTPLATE, NETHERITE_CHESTPLATE ->
+                        player.getInventory().getChestplate();
+                    case LEATHER_LEGGINGS, CHAINMAIL_LEGGINGS, IRON_LEGGINGS, GOLDEN_LEGGINGS, DIAMOND_LEGGINGS, NETHERITE_LEGGINGS ->
+                        player.getInventory().getLeggings();
+                    case LEATHER_BOOTS, CHAINMAIL_BOOTS, IRON_BOOTS, GOLDEN_BOOTS, DIAMOND_BOOTS, NETHERITE_BOOTS ->
+                        player.getInventory().getBoots();
+                    default -> null;
+                };
+                // 只有當盔甲槽為空或裝備不同時才觸發
+                if (currentArmor == null || currentArmor.getType() == Material.AIR || !currentArmor.isSimilar(event.getItem())) {
+                    player.getServer().getPluginManager().callEvent(new ArmorEquipEvent(player, event.getItem()));
+                }
+            }
         }
     }
 
